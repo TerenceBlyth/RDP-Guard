@@ -63,8 +63,12 @@ Private Sub MonitorMusicLoop()
                     ' ⭐ USE EFFECTIVE REMAINING TIME (accounts for outro trim)
                     remaining = GetEffectiveRemainingTime(musicReader, musicPath)
 
-                Catch
-                    ' Ignore transient timing exceptions
+                Catch ex As Exception
+                    ' Ignore transient timing exceptions (but log if excessive)
+                    consecutiveErrors += 1
+                    If consecutiveErrors <= 5 Then
+                        LogEvent($"Timing read error (#{consecutiveErrors}): {ex.Message}")
+                    End If
                 End Try
 
                 ' ===== HARD GUARD during VO / news / cool-off =====
@@ -86,7 +90,7 @@ Private Sub MonitorMusicLoop()
        remaining > TimeSpan.FromMilliseconds(500) Then
 
                     ' ⭐ NEW: Prevent multiple tail-silence dequeues
-                    Dim nowUtc = DateTime.UtcNow
+                    Dim nowUtc As DateTime = DateTime.UtcNow
                     If (nowUtc - lastNearEndDequeueUtc).TotalSeconds < 5.0 Then
                         Continue Do
                     End If
@@ -106,9 +110,6 @@ Private Sub MonitorMusicLoop()
                         nextTrack = playQueue.Peek()
                         haveNext = True
                     End If
-
-
-
 
                     If haveNext AndAlso Not String.IsNullOrWhiteSpace(nextTrack) Then
                         ' ⭐ Check if advance is allowed BEFORE dequeuing
@@ -197,7 +198,7 @@ Private Sub MonitorMusicLoop()
                     ' Check if next track is pre-loaded
                     If Not String.IsNullOrWhiteSpace(nextTrackPath) Then
                         ' ⭐ GAPLESS SWITCH: Next track is pre-loaded, perform seamless switch
-                        Dim nowUtc = DateTime.UtcNow
+                        Dim nowUtc As DateTime = DateTime.UtcNow
                         If (nowUtc - lastNearEndDequeueUtc).TotalSeconds >= 5.0 Then
                             lastNearEndDequeueUtc = nowUtc
 
@@ -243,7 +244,7 @@ Private Sub MonitorMusicLoop()
                     Else
                         ' ⭐ FALLBACK: No pre-load available - use old method
                         ' ⭐ NEW: Prevent multiple near-end dequeues
-                        Dim nowUtc = DateTime.UtcNow
+                        Dim nowUtc As DateTime = DateTime.UtcNow
                         If (nowUtc - lastNearEndDequeueUtc).TotalSeconds < 5.0 Then
                             Continue Do
                         End If
@@ -349,9 +350,11 @@ Private Sub MonitorMusicLoop()
                         End If
                     End If
 
-                    consecutiveErrors = 0
                     Continue Do
                 End If
+
+                ' Reset error counter after successful loop iteration
+                consecutiveErrors = 0
             End SyncLock
 
         Catch ex As Exception
