@@ -143,6 +143,8 @@ Private Sub MonitorMusicLoop()
                             End If
 
                             BeginInvoke(Sub() RequestAdvance(AdvanceSource.MonitorTailSilence, nextTrack, ctx))
+                            Threading.Interlocked.Increment(tracksSinceLastTimeAnnounce)
+                            LogEvent($"📊 Tracks since time announce: {tracksSinceLastTimeAnnounce}/{TIME_ANNOUNCE_CADENCE}")
                         Else
                             LogEvent($"Tail-silence advance blocked: {advReason} - track NOT dequeued")
                         End If
@@ -239,7 +241,11 @@ Private Sub MonitorMusicLoop()
                             End If
 
                             ' Perform gapless switch
-                            BeginInvoke(Sub() SwitchToPreLoadedTrack())
+                            Dim ctx As String = $"gapless rem={remaining.TotalMilliseconds:F0}ms preloaded"
+                            Dim nextPath As String = nextTrackPath  ' capture
+                            BeginInvoke(Sub() RequestAdvance(AdvanceSource.MonitorNearEnd, nextPath, ctx, usePreloaded:=True))
+                            Threading.Interlocked.Increment(tracksSinceLastTimeAnnounce)
+                            LogEvent($"📊 Tracks since time announce: {tracksSinceLastTimeAnnounce}/{TIME_ANNOUNCE_CADENCE}")
                         End If
                     Else
                         ' ⭐ FALLBACK: No pre-load available - use old method
@@ -320,6 +326,8 @@ Private Sub MonitorMusicLoop()
 
                                 Dim ctx As String = $"rem={remaining.TotalMilliseconds:F0}ms"
                                 BeginInvoke(Sub() RequestAdvance(AdvanceSource.MonitorNearEnd, nextTrack, ctx))
+                                Threading.Interlocked.Increment(tracksSinceLastTimeAnnounce)
+                                LogEvent($"📊 Tracks since time announce: {tracksSinceLastTimeAnnounce}/{TIME_ANNOUNCE_CADENCE}")
                             Else
                                 LogEvent($"Near-end advance blocked: {advReason} - track NOT dequeued")
                             End If
